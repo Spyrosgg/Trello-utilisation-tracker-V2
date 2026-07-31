@@ -328,7 +328,14 @@ function renderTimelineChart(timeline) {
       },
       scales: {
         x: { stacked: true },
-        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Effort %' } }
+        y: {
+  stacked: true,
+  beginAtZero: true,
+  title: {
+    display: true,
+    text: state.stacked ? 'Effort %' : 'Relative effort % per member'
+  }
+}
       }
     }
   });
