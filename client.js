@@ -67,7 +67,7 @@ TrelloPowerUp.initialize({
     return [{
       icon: {
         dark: './images/icon-white.svg',
-        light: './images/icon-dark.svg'
+        light: './images/loft3d.svg'
       },
       text: 'Team Effort',
       callback: function (t) {
