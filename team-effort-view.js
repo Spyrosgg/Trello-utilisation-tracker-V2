@@ -289,15 +289,22 @@ function renderTimelineChart(timeline) {
       });
     });
   } else {
-    datasets.push({
-      type: 'bar',
-      label: 'Total team effort %',
-      data: timeline.buckets.map(function (b) {
-        return Object.keys(b.totals).reduce(function (sum, id) { return sum + b.totals[id]; }, 0);
-      }),
-      backgroundColor: '#0079BF',
-      stack: 'effort'
-    });
+   datasets.push({
+  type: 'bar',
+  label: 'Relative effort % per member',
+  data: timeline.buckets.map(function (b) {
+    var memberIds = Object.keys(b.totals);
+    if (memberIds.length === 0) return 0;
+
+    var total = memberIds.reduce(function (sum, id) {
+      return sum + b.totals[id];
+    }, 0);
+
+    return total / memberIds.length;
+  }),
+  backgroundColor: '#0079BF',
+  stack: 'effort'
+});
   }
 
   var ctx = document.getElementById('timeline-chart').getContext('2d');
