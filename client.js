@@ -65,6 +65,10 @@ TrelloPowerUp.initialize({
   // Button in the top bar of the board that opens the charts
   'board-buttons': function (t, opts) {
     return [{
+      icon: {
+        dark: './images/icon-white.svg',
+        light: './images/icon-dark.svg'
+      },
       text: 'Team Effort',
       callback: function (t) {
         return t.modal({
