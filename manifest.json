@@ -1,0 +1,19 @@
+{
+  "name": "Team Effort Tracker",
+  "details": "Set each assigned member's % effort on a card, see cumulative workload per person, and view total team effort over time based on each card's start/due dates.",
+  "icon": {
+    "url": "./images/icon.svg"
+  },
+  "author": "your-team",
+  "capabilities": [
+    "card-badges",
+    "card-detail-badges",
+    "board-buttons",
+    "show-settings"
+  ],
+  "connectors": {
+    "iframe": {
+      "url": "./index.html"
+    }
+  }
+}

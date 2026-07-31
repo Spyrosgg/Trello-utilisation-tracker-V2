@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="tev">
+    <div id="loading" class="tev__loading">Loading board data…</div>
+
+    <div id="content" hidden>
+      <div id="summary" class="tev__summary"></div>
+
+      <div class="tev__section">
+        <h2>Cumulative effort by member</h2>
+        <p class="sub">Total assigned effort % across every card on the board, per member.</p>
+        <div class="tev__chart-wrap">
+          <canvas id="cumulative-chart"></canvas>
+        </div>
+        <div id="cumulative-empty" class="tev__empty" hidden>
+          No effort has been set on any card yet. Open a card and use the
+          "Team Effort" badge to get started.
+        </div>
+      </div>
+
+      <div class="tev__section">
+        <h2>Team effort over time</h2>
+        <p class="sub">
+          Total effort % active in each period, based on each card's start/due
+          dates.
+        </p>
+        <div class="tev__controls">
+          <label for="granularity-select">Group by</label>
+          <select id="granularity-select">
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+          </select>
+          <label style="margin-left:16px;">
+            <input type="checkbox" id="stack-toggle" />
+            Break down by member
+          </label>
+        </div>
+        <div class="tev__chart-wrap">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+        <div id="timeline-empty" class="tev__empty" hidden>
+          No cards with a start or due date were found, so there is nothing to
+          plot on a timeline yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./team-effort-view.js"></script>
+</body>
+</html>

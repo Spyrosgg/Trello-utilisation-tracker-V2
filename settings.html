@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <p class="hint">Group the "Team effort over time" chart by:</p>
+
+  <label class="settings__option">
+    <input type="radio" name="granularity" value="week" id="gran-week" />
+    Week
+  </label>
+  <label class="settings__option">
+    <input type="radio" name="granularity" value="month" id="gran-month" />
+    Month
+  </label>
+
+  <button id="save" class="mod-primary" type="button" style="margin-top:14px;width:100%;">
+    Save
+  </button>
+
+  <script src="./settings.js"></script>
+</body>
+</html>
