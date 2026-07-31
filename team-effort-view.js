@@ -93,41 +93,43 @@ function computeCumulative() {
     .sort(function (a, b) { return b.total - a.total; });
 }
 
-function computeCumulative() {
-  var totals = {};
-  var cardCounts = {}; // ✅ track how many cards each member is on
-  var idToName = {};
-  
-  state.members.forEach(function (m) {
-    totals[m.id] = 0;
-    cardCounts[m.id] = 0;
-    idToName[m.id] = m.name;
-  });
+function renderCumulativeChart() {
+  var rows = computeCumulative();
+  var wrapEl = document.getElementById('cumulative-chart').parentNode;
+  var emptyEl = document.getElementById('cumulative-empty');
 
-  state.cards.forEach(function (card) {
-    var currentIds = (card.members || []).map(function (m) { return m.id; });
-    var effort = state.effortByCard[card.id] || {};
-    currentIds.forEach(function (id) {
-      var val = Number(effort[id]);
-      if (isNaN(val) || val <= 0) return;
-      totals[id] += val;
-      cardCounts[id] += 1; // ✅ increment card count for this member
-    });
-  });
+  if (rows.length === 0) {
+    wrapEl.style.display = 'none';
+    emptyEl.hidden = false;
+    return;
+  }
+  wrapEl.style.display = '';
+  emptyEl.hidden = true;
+  wrapEl.style.height = Math.max(140, rows.length * 36 + 40) + 'px';
 
-  return Object.keys(totals)
-    .map(function (id) {
-      var total = totals[id];
-      var cardCount = cardCounts[id] || 1;
-      var avgPerCard = Math.round(total / cardCount); // ✅ divide by card count
-      return {
-        id: id,
-        name: idToName[id] || ('Member ' + id.slice(-4)),
-        total: avgPerCard // store the average instead of raw total
-      };
-    })
-    .filter(function (row) { return row.total > 0; })
-    .sort(function (a, b) { return b.total - a.total; });
+  var ctx = document.getElementById('cumulative-chart').getContext('2d');
+
+  if (cumulativeChart) cumulativeChart.destroy();
+  cumulativeChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map(function (r) { return r.name; }),
+      datasets: [{
+        label: 'Cumulative effort %',
+        data: rows.map(function (r) { return r.total; }),
+        backgroundColor: rows.map(function (r, i) { return colorForIndex(i); })
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, title: { display: true, text: 'Effort %' } }
+      }
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
