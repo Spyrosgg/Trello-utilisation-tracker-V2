@@ -65,8 +65,11 @@ TrelloPowerUp.initialize({
   // Button in the top bar of the board that opens the charts
   'board-buttons': function (t, opts) {
     return [{
-      icon: '<?xml version="1.0" encoding="UTF-8"?><svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000"><path d="M22 17C13 17 11 22.9999 2 22.9999" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M22 1C13 1 11 6.9999 2 6.9999" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12 16.5V7.5M12 16.5L14.5 14M12 16.5L9.5 14M12 7.5L14.5 10M12 7.5L9.5 10" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-      text: 'Team Util',
+      icon: {
+        dark: './images/icon-white.svg',
+        light: './images/icon-dark.svg'
+      },
+      text: 'Team Effort',
       callback: function (t) {
         return t.modal({
           title: 'Team effort over time',
