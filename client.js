@@ -66,7 +66,7 @@ TrelloPowerUp.initialize({
   'board-buttons': function (t, opts) {
     return [{
       icon: {
-        dark: './images/icon-white.svg',
+        dark: './images/stats-report.svg',
         light: './images/icon-dark.svg'
       },
       text: 'Team Effort',
