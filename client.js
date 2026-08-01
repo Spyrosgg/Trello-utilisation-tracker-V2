@@ -1,12 +1,13 @@
 /* global TrelloPowerUp */
 var Promise = TrelloPowerUp.Promise;
 
-var EFFORT_KEY = 'effort'; // card-scoped, shared plugin data: { memberId: percentNumber }
+var EFFORT_KEY = 'effortHours'; // card-scoped, shared plugin data: { memberId: hoursPerWeek }
+var WEEKLY_CAPACITY_HOURS = 37.5; // a member's full-time hours per week
 var OVERLAP_CHECK_CAP = 40; // skip the overlap warning rather than firing 40+ requests
 
-// Raw sum of the effort values belonging to members currently on the card.
+// Raw sum of the hours belonging to members currently on the card.
 // Stale entries (a member removed from the card) are ignored.
-function sumEffort(effortMap, memberIds) {
+function sumHours(effortMap, memberIds) {
   if (!effortMap) return 0;
   return (memberIds || []).reduce(function (total, id) {
     var val = Number(effortMap[id]);
@@ -14,21 +15,21 @@ function sumEffort(effortMap, memberIds) {
   }, 0);
 }
 
-// Effort per card is shown relative to how many people share the card, so a
-// card with 2 members at 50% each reads as "50% avg", not "100%".
-function averageEffort(effortMap, memberIds) {
-  if (!memberIds || memberIds.length === 0) return 0;
-  return sumEffort(effortMap, memberIds) / memberIds.length;
-}
-
 function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
-function badgeColor(avg) {
-  if (!avg || avg <= 0) return null;
-  if (avg < 100) return 'yellow';
-  if (avg === 100) return 'green';
+// Converts a total-hours figure into "% of combined capacity" for whichever
+// group of members it's being measured against, purely to drive badge color.
+function percentOfCapacity(totalHours, memberCount) {
+  if (!memberCount) return 0;
+  return (totalHours / (WEEKLY_CAPACITY_HOURS * memberCount)) * 100;
+}
+
+function badgeColor(percent) {
+  if (!percent || percent <= 0) return null;
+  if (percent < 100) return 'yellow';
+  if (percent === 100) return 'green';
   return 'red'; // over-allocated
 }
 
@@ -41,11 +42,11 @@ function toUTCDate(str) {
 
 // Looks across the rest of the board for cards that (a) share at least one
 // member with this card and (b) overlap this card's date range, then checks
-// whether any shared member's own raw effort adds up past 100% once those
-// concurrent cards are combined. This is only run on the back-of-card badge
-// (opened one card at a time) rather than the front-of-card badge, since the
-// front badge renders for every visible card on the board at once and this
-// check needs extra network round-trips per card.
+// whether any shared member's own raw hours add up past their weekly
+// capacity once those concurrent cards are combined. This only runs on the
+// back-of-card badge (opened one card at a time) rather than the
+// front-of-card badge, since the front badge renders for every visible card
+// on the board at once and this check needs extra network round-trips.
 function checkConcurrentOverload(t, card, myEffort) {
   var memberIds = (card.members || []).map(function (m) { return m.id; });
   if (memberIds.length === 0) return Promise.resolve([]);
@@ -88,32 +89,37 @@ function checkConcurrentOverload(t, card, myEffort) {
         });
       });
 
-      var overloadedIds = Object.keys(totals).filter(function (id) { return totals[id] > 100; });
+      var overloadedIds = Object.keys(totals).filter(function (id) {
+        return totals[id] > WEEKLY_CAPACITY_HOURS;
+      });
       if (overloadedIds.length === 0) return [];
 
       var idToName = {};
       card.members.forEach(function (m) {
         idToName[m.id] = m.fullName || m.username || m.initials || 'Member';
       });
-      return overloadedIds.map(function (id) { return idToName[id] + ' (' + Math.round(totals[id]) + '%)'; });
+      return overloadedIds.map(function (id) {
+        return idToName[id] + ' (' + round1(totals[id]) + 'h/wk)';
+      });
     });
   });
 }
 
 TrelloPowerUp.initialize({
 
-  // Small badge on the front of the card: average effort per assigned member
+  // Small badge on the front of the card: total hours across assigned members
   'card-badges': function (t, opts) {
     return t.card('members').then(function (card) {
       var memberIds = (card.members || []).map(function (m) { return m.id; });
       if (memberIds.length === 0) return [];
 
       return t.get('card', 'shared', EFFORT_KEY, {}).then(function (effort) {
-        var avg = averageEffort(effort, memberIds);
-        if (avg <= 0) return [];
+        var totalHours = sumHours(effort, memberIds);
+        if (totalHours <= 0) return [];
+        var percent = percentOfCapacity(totalHours, memberIds.length);
         return [{
-          text: 'Avg ' + round1(avg) + '%',
-          color: badgeColor(avg)
+          text: round1(totalHours) + 'h',
+          color: badgeColor(percent)
         }];
       });
     });
@@ -129,15 +135,18 @@ TrelloPowerUp.initialize({
       var card = results[0];
       var effort = results[1] || {};
       var memberIds = (card.members || []).map(function (m) { return m.id; });
-      var avg = averageEffort(effort, memberIds);
+      var totalHours = sumHours(effort, memberIds);
+      var percent = percentOfCapacity(totalHours, memberIds.length);
 
       var badges = [{
         title: 'Team Effort',
-        text: memberIds.length ? round1(avg) + '% avg/member' : 'Assign members',
-        color: badgeColor(avg),
+        text: memberIds.length
+          ? round1(totalHours) + 'h total (' + Math.round(percent) + '% of capacity)'
+          : 'Assign members',
+        color: badgeColor(percent),
         callback: function (t) {
           return t.popup({
-            title: 'Set effort %',
+            title: 'Set hours/week',
             url: './effort-editor.html',
             height: 260
           });
@@ -148,7 +157,7 @@ TrelloPowerUp.initialize({
         if (overloadedNames.length > 0) {
           badges.push({
             title: 'Overlap warning',
-            text: overloadedNames.join(', ') + ' over 100% this period',
+            text: overloadedNames.join(', ') + ' over ' + WEEKLY_CAPACITY_HOURS + 'h/week this period',
             color: 'red'
           });
         }

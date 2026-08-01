@@ -1,8 +1,9 @@
 /* global TrelloPowerUp, Chart */
 var t = TrelloPowerUp.iframe();
 
-var EFFORT_KEY = 'effort';
+var EFFORT_KEY = 'effortHours';
 var GRANULARITY_KEY = 'granularity';
+var WEEKLY_CAPACITY_HOURS = 37.5; // a member's full-time hours per week
 var MAX_BUCKETS = 260; // safety cap, ~5 years of weekly buckets
 
 var PALETTE = [
@@ -13,7 +14,7 @@ var PALETTE = [
 var state = {
   members: [],          // [{id, name}]
   cards: [],             // raw card objects from t.cards()
-  effortByCard: {},      // cardId -> { memberId: number }
+  effortByCard: {},      // cardId -> { memberId: hoursPerWeek }
   granularity: 'week',
   prorate: true,
   stacked: false,
@@ -39,13 +40,6 @@ function round1(n) {
 
 function isMemberIncluded(id) {
   return !state.selectedMemberIds || state.selectedMemberIds.has(id);
-}
-
-// Number of members the timeline's "average effort per member" is divided
-// by. Uses the filtered subset when a filter is active, otherwise the whole
-// board, so "team capacity" always collapses to a flat 100% line.
-function currentTeamSize() {
-  return state.selectedMemberIds ? state.selectedMemberIds.size : state.members.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,8 +97,6 @@ function buildMemberFilterList() {
     input.checked = isMemberIncluded(m.id);
     input.setAttribute('data-member-id', m.id);
     input.addEventListener('change', function () {
-      // Lazily create the selection set the first time something is
-      // unchecked; before that, "no filter" already behaves as "everyone".
       if (!state.selectedMemberIds) {
         state.selectedMemberIds = new Set(state.members.map(function (mm) { return mm.id; }));
       }
@@ -113,7 +105,6 @@ function buildMemberFilterList() {
       } else {
         state.selectedMemberIds.delete(m.id);
       }
-      // If everything ended up checked again, drop back to "no filter".
       if (state.selectedMemberIds.size === state.members.length) {
         state.selectedMemberIds = null;
       }
@@ -161,8 +152,9 @@ function wireMemberFilterControls() {
 }
 
 // ---------------------------------------------------------------------------
-// Cumulative effort per member (all cards, regardless of dates) — a raw sum,
-// not averaged, so it reads as "total workload assigned" per person.
+// Cumulative hours per member (all cards, regardless of dates) — a raw sum
+// of hours, not converted to %, since a lump total has no single time window
+// to measure it against.
 // ---------------------------------------------------------------------------
 
 function computeCumulative() {
@@ -214,8 +206,8 @@ function renderCumulativeChart() {
     data: {
       labels: rows.map(function (r) { return r.name; }),
       datasets: [{
-        label: 'Cumulative effort %',
-        data: rows.map(function (r) { return r.total; }),
+        label: 'Cumulative hours/week',
+        data: rows.map(function (r) { return round1(r.total); }),
         backgroundColor: rows.map(function (r, i) { return colorForIndex(i); })
       }]
     },
@@ -225,7 +217,7 @@ function renderCumulativeChart() {
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, title: { display: true, text: 'Effort %' } }
+        x: { beginAtZero: true, title: { display: true, text: 'Hours / week' } }
       }
     }
   });
@@ -275,16 +267,27 @@ function bucketLabel(date, granularity) {
   return date.toLocaleDateString(undefined, opts);
 }
 
+// A bucket's total capacity hours scales with its length: a week-long bucket
+// is one "week" of the 37.5h/week constant; a month-long bucket is however
+// many 7-day periods it actually spans.
+function bucketCapacityHoursPerMember(bucket) {
+  var days = daysBetweenInclusive(bucket.start, bucket.end);
+  return WEEKLY_CAPACITY_HOURS * (days / 7);
+}
+
 // ---------------------------------------------------------------------------
-// Timeline: bucket every card's effort into weekly/monthly periods based on
-// its start/due dates. A card with only one of the two dates is treated as a
-// single-period event. A card marked dueComplete stops contributing effort
-// to any bucket beyond today, since finished work shouldn't project into the
-// future. When "prorate" is on, a card's effort in a bucket is scaled by how
-// many of that bucket's days the card's range actually covers; otherwise it
-// counts in full for any bucket it touches at all.
-// Returns RAW per-member totals per bucket — averaging by team size happens
-// at render time, so the same computed timeline serves both chart modes.
+// Timeline: bucket every card's hours into weekly/monthly periods based on
+// its start/due dates. Effort is entered as hours PER WEEK, so a card's
+// contribution to a bucket is that rate scaled by (days-covered / 7) — this
+// keeps the math correct regardless of whether buckets are weeks or months,
+// and regardless of prorating. A card with only one of start/due is treated
+// as a single-period event. A card marked dueComplete stops contributing
+// past today, since finished work shouldn't project into the future.
+// When "prorate" is on, days-covered is the actual overlap between the
+// card's range and the bucket; when off, it's the bucket's full length
+// (i.e. any touched bucket is treated as fully covered).
+// Returns RAW per-member HOURS per bucket — conversion to % happens at
+// render time, using whichever members actually have hours in that bucket.
 // ---------------------------------------------------------------------------
 
 function computeTimeline(granularity, prorate) {
@@ -304,7 +307,7 @@ function computeTimeline(granularity, prorate) {
     var filteredIds = (card.members || []).map(function (m) { return m.id; }).filter(isMemberIncluded);
     if (filteredIds.length === 0) return;
 
-    // Completed cards don't project effort past today.
+    // Completed cards don't project hours past today.
     var effectiveDue = due;
     if (card.dueComplete && due.getTime() > today.getTime()) {
       effectiveDue = today.getTime() > start.getTime() ? today : start;
@@ -334,7 +337,7 @@ function computeTimeline(granularity, prorate) {
       start: bucketStart,
       end: bucketLastDay,
       label: bucketLabel(bucketStart, granularity),
-      totals: {} // memberId -> effort total for this bucket
+      totals: {} // memberId -> hours total for this bucket
     });
 
     cursor = bucketEndExclusive;
@@ -354,17 +357,15 @@ function computeTimeline(granularity, prorate) {
       var overlapEnd = cardEnd < bucket.end ? cardEnd : bucket.end;
       if (overlapStart.getTime() > overlapEnd.getTime()) return; // no overlap
 
-      var fraction = 1;
-      if (prorate) {
-        var bucketDays = daysBetweenInclusive(bucket.start, bucket.end);
-        var overlapDays = daysBetweenInclusive(overlapStart, overlapEnd);
-        fraction = bucketDays > 0 ? overlapDays / bucketDays : 1;
-      }
+      var bucketDays = daysBetweenInclusive(bucket.start, bucket.end);
+      var overlapDays = daysBetweenInclusive(overlapStart, overlapEnd);
+      var contributionDays = prorate ? overlapDays : bucketDays;
 
       entry.memberIds.forEach(function (id) {
-        var val = Number(effort[id]);
-        if (isNaN(val) || val <= 0) return;
-        bucket.totals[id] = (bucket.totals[id] || 0) + val * fraction;
+        var weeklyRate = Number(effort[id]);
+        if (isNaN(weeklyRate) || weeklyRate <= 0) return;
+        var hours = weeklyRate * (contributionDays / 7);
+        bucket.totals[id] = (bucket.totals[id] || 0) + hours;
       });
     });
   });
@@ -469,8 +470,6 @@ function renderTimelineChart(timeline) {
   wrapEl.style.height = '380px';
 
   var labels = timeline.buckets.map(function (b) { return b.label; });
-  var teamSize = currentTeamSize();
-  var divisor = Math.max(teamSize, 1);
 
   var activeMemberIds = {};
   timeline.buckets.forEach(function (b) {
@@ -482,16 +481,25 @@ function renderTimelineChart(timeline) {
     return an.localeCompare(bn);
   });
 
+  // Per-bucket count of members who actually have hours assigned that
+  // period — the divisor for "average utilization," per your instruction,
+  // rather than a fixed board-wide headcount.
+  var activeCounts = timeline.buckets.map(function (b) { return Object.keys(b.totals).length; });
+
   var datasets = [];
 
   if (state.stacked) {
-    // Per-member breakdown stays raw (each person's own effort), unaffected
-    // by the team-size averaging used for the aggregate view below.
+    // Per-member breakdown: each person's own utilization %, unaffected by
+    // how many other members are active that period.
     memberIds.forEach(function (id, i) {
       datasets.push({
         type: 'bar',
         label: timeline.idToName[id] || ('Member ' + id.slice(-4)),
-        data: timeline.buckets.map(function (b) { return round1(b.totals[id] || 0); }),
+        data: timeline.buckets.map(function (b) {
+          var hours = b.totals[id] || 0;
+          if (hours <= 0) return 0;
+          return round1(hours / bucketCapacityHoursPerMember(b) * 100);
+        }),
         backgroundColor: colorForIndex(i),
         stack: 'effort'
       });
@@ -499,10 +507,13 @@ function renderTimelineChart(timeline) {
   } else {
     datasets.push({
       type: 'bar',
-      label: 'Average effort per member (%)',
-      data: timeline.buckets.map(function (b) {
-        var raw = Object.keys(b.totals).reduce(function (sum, id) { return sum + b.totals[id]; }, 0);
-        return round1(raw / divisor);
+      label: 'Average utilization % (members with effort assigned)',
+      data: timeline.buckets.map(function (b, i) {
+        var activeCount = activeCounts[i];
+        if (activeCount === 0) return 0;
+        var totalHours = Object.keys(b.totals).reduce(function (sum, id) { return sum + b.totals[id]; }, 0);
+        var capacity = bucketCapacityHoursPerMember(b) * activeCount;
+        return round1(totalHours / capacity * 100);
       }),
       backgroundColor: '#0079BF',
       stack: 'effort'
@@ -529,10 +540,15 @@ function renderTimelineChart(timeline) {
         tooltip: {
           callbacks: {
             footer: function (items) {
-              var sum = items.reduce(function (s, item) { return s + item.parsed.y; }, 0);
-              return state.stacked
-                ? 'Stacked total: ' + round1(sum) + '%'
-                : 'Averaged over ' + teamSize + ' member' + (teamSize === 1 ? '' : 's');
+              if (state.stacked) {
+                var sum = items.reduce(function (s, item) { return s + item.parsed.y; }, 0);
+                return 'Stacked total: ' + round1(sum) + '%';
+              }
+              var idx = items[0].dataIndex;
+              var activeCount = activeCounts[idx];
+              return activeCount > 0
+                ? 'Averaged over ' + activeCount + ' member' + (activeCount === 1 ? '' : 's') + ' with assigned effort'
+                : 'No effort assigned in this period';
             }
           }
         }
@@ -542,7 +558,7 @@ function renderTimelineChart(timeline) {
         y: {
           stacked: true,
           beginAtZero: true,
-          title: { display: true, text: state.stacked ? 'Effort % (raw, per member)' : 'Avg effort % per member' }
+          title: { display: true, text: state.stacked ? 'Utilization % per member' : 'Avg utilization %' }
         }
       }
     }
@@ -552,6 +568,19 @@ function renderTimelineChart(timeline) {
 // ---------------------------------------------------------------------------
 // Summary strip + wiring
 // ---------------------------------------------------------------------------
+
+function computeMembersWithEffort() {
+  var withEffort = {};
+  state.cards.forEach(function (card) {
+    var effort = state.effortByCard[card.id] || {};
+    (card.members || []).forEach(function (m) {
+      if (!isMemberIncluded(m.id)) return;
+      var val = Number(effort[m.id]);
+      if (!isNaN(val) && val > 0) withEffort[m.id] = true;
+    });
+  });
+  return Object.keys(withEffort).length;
+}
 
 function renderSummary(timeline) {
   var summaryEl = document.getElementById('summary');
@@ -564,7 +593,7 @@ function renderSummary(timeline) {
     : '';
 
   summaryEl.innerHTML =
-    '<div><strong>' + currentTeamSize() + '</strong> members averaged</div>' +
+    '<div><strong>' + computeMembersWithEffort() + '</strong> members with effort assigned</div>' +
     '<div><strong>' + state.cards.length + '</strong> visible cards</div>' +
     '<div><strong>' + datedCount + '</strong> cards with start/due dates</div>' +
     '<div><strong>' + rangeText + '</strong> date range plotted' + warning + '</div>';
