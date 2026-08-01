@@ -131,15 +131,90 @@ body {
 .tev__controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-bottom: 12px;
   font-size: 13px;
+}
+
+.tev__controls label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
 .tev__controls select {
   padding: 4px 6px;
   border-radius: 3px;
   border: 2px solid #DFE1E6;
+}
+
+.tev__member-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.member-filter__btn {
+  background: #FAFBFC;
+  border: 2px solid #DFE1E6;
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #172B4D;
+}
+
+.member-filter__btn:hover {
+  background: #EBECF0;
+}
+
+.member-filter__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  margin-top: 4px;
+  background: #FFFFFF;
+  border: 1px solid #DFE1E6;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(9, 30, 66, 0.15);
+  padding: 8px;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.member-filter__actions {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #EBECF0;
+}
+
+.member-filter__actions button {
+  background: none;
+  border: none;
+  color: #0079BF;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+.member-filter__actions button:hover {
+  text-decoration: underline;
+}
+
+.member-filter__list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 2px;
+  cursor: pointer;
 }
 
 .tev__empty {

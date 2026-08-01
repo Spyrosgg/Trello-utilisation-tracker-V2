@@ -12,25 +12,27 @@
     <div id="loading" class="tev__loading">Loading board data…</div>
 
     <div id="content" hidden>
-      <div id="summary" class="tev__summary"></div>
 
-      <div class="tev__section">
-        <h2>Cumulative effort by member</h2>
-        <p class="sub">Total assigned effort % across every card on the board, per member.</p>
-        <div class="tev__chart-wrap">
-          <canvas id="cumulative-chart"></canvas>
-        </div>
-        <div id="cumulative-empty" class="tev__empty" hidden>
-          No effort has been set on any card yet. Open a card and use the
-          "Team Effort" badge to get started.
+      <div class="tev__member-filter">
+        <span class="hint" style="margin:0 8px 0 0;">Filter to:</span>
+        <button id="member-filter-btn" type="button" class="member-filter__btn">All members</button>
+        <div id="member-filter-panel" class="member-filter__panel" hidden>
+          <div class="member-filter__actions">
+            <button type="button" id="member-filter-all">Select all</button>
+            <button type="button" id="member-filter-none">Clear</button>
+          </div>
+          <div id="member-filter-list" class="member-filter__list"></div>
         </div>
       </div>
+
+      <div id="summary" class="tev__summary"></div>
 
       <div class="tev__section">
         <h2>Team effort over time</h2>
         <p class="sub">
-          Total effort % active in each period, based on each card's start/due
-          dates.
+          Average effort % per team member active in each period, based on
+          each card's start/due dates. The dashed red line marks today; the
+          dashed grey line marks team capacity (100% per member).
         </p>
         <div class="tev__controls">
           <label for="granularity-select">Group by</label>
@@ -38,7 +40,11 @@
             <option value="week">Week</option>
             <option value="month">Month</option>
           </select>
-          <label style="margin-left:16px;">
+          <label>
+            <input type="checkbox" id="prorate-toggle" checked />
+            Prorate by day coverage
+          </label>
+          <label>
             <input type="checkbox" id="stack-toggle" />
             Break down by member
           </label>
@@ -51,6 +57,19 @@
           plot on a timeline yet.
         </div>
       </div>
+
+      <div class="tev__section">
+        <h2>Cumulative effort by member</h2>
+        <p class="sub">Total assigned effort % across every card on the board, per member (not averaged).</p>
+        <div class="tev__chart-wrap">
+          <canvas id="cumulative-chart"></canvas>
+        </div>
+        <div id="cumulative-empty" class="tev__empty" hidden>
+          No effort has been set on any card yet. Open a card and use the
+          "Team Effort" badge to get started.
+        </div>
+      </div>
+
     </div>
   </div>
 
