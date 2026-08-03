@@ -1,6 +1,6 @@
 /* global TrelloPowerUp */
 var t = TrelloPowerUp.iframe();
-var EFFORT_KEY = 'effortHours';
+var EFFORT_KEY = 'effortDays';
 
 function displayName(member) {
   return member.fullName || member.username || member.initials || 'Member';
@@ -43,7 +43,7 @@ function render() {
       var input = document.createElement('input');
       input.type = 'number';
       input.min = '0';
-      input.max = '168';
+      input.max = '7';
       input.step = '0.5';
       input.id = 'member-' + member.id;
       input.setAttribute('data-member-id', member.id);
@@ -51,7 +51,7 @@ function render() {
       input.placeholder = '0';
 
       var suffix = document.createElement('span');
-      suffix.textContent = 'h';
+      suffix.textContent = 'd';
 
       inputWrap.appendChild(input);
       inputWrap.appendChild(suffix);

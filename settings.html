@@ -18,7 +18,17 @@
     Month
   </label>
 
-  <button id="save" class="mod-primary" type="button" style="margin-top:14px;width:100%;">
+  <p class="hint" style="margin-top:16px;">
+    Team size to divide the average-utilization chart by:
+  </p>
+  <div class="settings__team-size-row">
+    <input type="number" id="team-size-input" min="1" step="1" placeholder="auto" />
+    <span class="hint" style="margin:0 0 0 8px;">
+      people (leave blank to use the current board member count)
+    </span>
+  </div>
+
+  <button id="save" class="mod-primary" type="button" style="margin-top:16px;width:100%;">
     Save
   </button>
 
